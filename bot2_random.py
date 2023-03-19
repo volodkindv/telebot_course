@@ -28,7 +28,13 @@ class User:
     wins: int = 0
 
 
-user = User()
+users = dict()
+
+
+def local_user(id: str) -> User:
+    result = users.get(id, User())
+    users[id] = result
+    return result
 
 
 # Функция возвращающая случайное целое число от 1 до 100
@@ -61,14 +67,16 @@ async def process_help_command(message: Message):
 # Этот хэндлер будет срабатывать на команду "/stat"
 @dp.message(Command(commands=["stat"]))
 async def process_stat_command(message: Message):
+    user = local_user(message.from_user.id)
     await message.answer(
-        f'Всего игр сыграно: {user.total_games}\n' f'Игр выиграно: {user.wins}'
+        f"Всего игр сыграно: {user.total_games}\n" f"Игр выиграно: {user.wins}"
     )
 
 
 # Этот хэндлер будет срабатывать на команду "/cancel"
 @dp.message(Command(commands=["cancel"]))
 async def process_cancel_command(message: Message):
+    user = local_user(message.from_user.id)
     if user.in_game:
         await message.answer(
             "Вы вышли из игры. Если захотите сыграть " "снова - напишите об этом"
@@ -86,6 +94,7 @@ async def process_cancel_command(message: Message):
     )
 )
 async def process_positive_answer(message: Message):
+    user = local_user(message.from_user.id)
     if not user.in_game:
         await message.answer(
             "Ура!\n\nЯ загадал число от 1 до 100, " "попробуй угадать!"
@@ -104,6 +113,7 @@ async def process_positive_answer(message: Message):
 # Этот хэндлер будет срабатывать на отказ пользователя сыграть в игру
 @dp.message(Text(text=["Нет", "Не", "Не хочу", "Не буду"], ignore_case=True))
 async def process_negative_answer(message: Message):
+    user = local_user(message.from_user.id)
     if not user.in_game:
         await message.answer(
             "Жаль :(\n\nЕсли захотите поиграть - просто " "напишите об этом"
@@ -117,6 +127,7 @@ async def process_negative_answer(message: Message):
 # Этот хэндлер будет срабатывать на отправку пользователем чисел от 1 до 100
 @dp.message(lambda x: x.text and x.text.isdigit() and 1 <= int(x.text) <= 100)
 async def process_numbers_answer(message: Message):
+    user = local_user(message.from_user.id)
     if user.in_game:
         if int(message.text) == user.secret_number:
             await message.answer("Ура!!! Вы угадали число!\n\n" "Может, сыграем еще?")
@@ -134,7 +145,7 @@ async def process_numbers_answer(message: Message):
             await message.answer(
                 f"К сожалению, у вас больше не осталось "
                 f"попыток. Вы проиграли :(\n\nМое число "
-                f'было {user.secret_number}\n\nДавайте '
+                f"было {user.secret_number}\n\nДавайте "
                 f"сыграем еще?"
             )
             user.in_game = False
@@ -146,6 +157,7 @@ async def process_numbers_answer(message: Message):
 # Этот хэндлер будет срабатывать на остальные любые сообщения
 @dp.message()
 async def process_other_text_answers(message: Message):
+    user = local_user(message.from_user.id)
     if user.in_game:
         await message.answer(
             "Мы же сейчас с вами играем. " "Присылайте, пожалуйста, числа от 1 до 100"
