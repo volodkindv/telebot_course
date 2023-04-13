@@ -6,11 +6,10 @@ from aiogram.fsm.state import default_state
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import (CallbackQuery, InlineKeyboardButton,
                            InlineKeyboardMarkup, Message, PhotoSize)
+from config import Config, load_config
 
-# Вместо BOT TOKEN HERE нужно вставить токен вашего бота,
-# полученный у @BotFather
-import os
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+config: Config = load_config()
+BOT_TOKEN: str = config.tg_bot.token
 
 # Инициализируем хранилище (создаем экземпляр класса MemoryStorage)
 storage: MemoryStorage = MemoryStorage()
@@ -45,6 +44,15 @@ async def process_start_command(message: Message):
                               'отправьте команду /fillform')
 
 
+# Этот хэндлер будет срабатывать на команду "/cancel" в состоянии
+# по умолчанию и сообщать, что эта команда работает внутри машины состояний
+@dp.message(Command(commands='cancel'), StateFilter(default_state))
+async def process_cancel_command(message: Message):
+    await message.answer(text='Отменять нечего. Вы вне машины состояний\n\n'
+                              'Чтобы перейти к заполнению анкеты - '
+                              'отправьте команду /fillform')
+
+
 # Этот хэндлер будет срабатывать на команду "/cancel" в любых состояниях,
 # кроме состояния по умолчанию, и отключать машину состояний
 @dp.message(Command(commands='cancel'), ~StateFilter(default_state))
@@ -52,17 +60,8 @@ async def process_cancel_command_state(message: Message, state: FSMContext):
     await message.answer(text='Вы вышли из машины состояний\n\n'
                               'Чтобы снова перейти к заполнению анкеты - '
                               'отправьте команду /fillform')
-    # Сбрасываем состояние
+    # Сбрасываем состояние и очищаем данные, полученные внутри состояний
     await state.clear()
-
-
-# Этот хэндлер будет срабатывать на команду "/cancel" в состоянии
-# по умолчанию и сообщать, что эта команда доступна в машине состояний
-@dp.message(Command(commands='cancel'), StateFilter(default_state))
-async def process_cancel_command(message: Message):
-    await message.answer(text='Отменять нечего. Вы вне машины состояний\n\n'
-                              'Чтобы перейти к заполнению анкеты - '
-                              'отправьте команду /fillform')
 
 
 # Этот хэндлер будет срабатывать на команду /fillform
@@ -240,8 +239,7 @@ async def warning_not_education(message: Message):
 @dp.callback_query(StateFilter(FSMFillForm.fill_wish_news),
                    Text(text=['yes_news', 'no_news']))
 async def process_wish_news_press(callback: CallbackQuery, state: FSMContext):
-    # C помощью менеджера контекста сохраняем данные о
-    # получении новостей по ключу "wish_news"
+    # Cохраняем данные о получении новостей по ключу "wish_news"
     await state.update_data(wish_news=callback.data == 'yes_news')
     # Добавляем в "базу данных" анкету пользователя
     # по ключу id пользователя
